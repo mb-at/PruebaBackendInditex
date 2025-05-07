@@ -1,4 +1,3 @@
-# Ignorar construcciones de Maven
 /app/target/
 /**/target/
 /app/.mvn/
