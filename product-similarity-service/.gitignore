@@ -1,16 +1,25 @@
+# Ignorar los builds de Maven
 /app/target/
-/**/target/
+**/target/
+
+# Wrapper de Maven
 /app/.mvn/
-/app/mvnw*
+# pero mantener los scripts mvnw
 !/app/mvnw
 !/app/mvnw.cmd
+
+# IDEs y editores
 .vscode/
 .idea/
 *.iml
+
+# Logs y archivos temporales
 *.log
 *.tmp
 
+# SO
 .DS_Store
 Thumbs.db
 
+# Docker
 docker-compose.override.yml
