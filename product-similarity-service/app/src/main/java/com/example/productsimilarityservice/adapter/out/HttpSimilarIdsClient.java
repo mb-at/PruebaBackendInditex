@@ -1,5 +1,9 @@
 package com.example.productsimilarityservice.adapter.out;
 
+import org.springframework.core.ParameterizedTypeReference;
+import reactor.core.publisher.Mono;
+import java.time.Duration;
+import java.util.List;
 import com.example.productsimilarityservice.domain.port.out.SimilarIdsClient;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.stereotype.Component;
@@ -21,11 +25,12 @@ public class HttpSimilarIdsClient implements SimilarIdsClient {
 
     @Override
     public List<String> fetchSimilarIds(String productId) {
-        return webClient
-            .get()
+        Mono<List<String>> mono = webClient.get()
             .uri("/product/{id}/similarids", productId)
             .retrieve()
-            .bodyToMono(new ParameterizedTypeReference<List<String>>() {})
-            .block();  
+            .bodyToMono(new ParameterizedTypeReference<List<String>>() {});
+        return mono
+            .timeout(Duration.ofSeconds(3))
+            .block();   // si sobrepasa 3s lanza TimeoutException
     }
 }

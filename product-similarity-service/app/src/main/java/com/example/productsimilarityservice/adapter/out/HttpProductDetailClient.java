@@ -1,5 +1,7 @@
 package com.example.productsimilarityservice.adapter.out;
 
+import java.time.Duration;
+import reactor.core.publisher.Mono;
 import com.example.productsimilarityservice.domain.port.out.ProductDetailClient;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.stereotype.Component;
@@ -15,13 +17,13 @@ public class HttpProductDetailClient implements ProductDetailClient {
         this.webClient = builder.baseUrl("http://localhost:3001").build();
     }
 
-    @Override
     public Product fetchById(String productId) {
-        return webClient
-            .get()
+        Mono<Product> mono = webClient.get()
             .uri("/product/{id}", productId)
             .retrieve()
-            .bodyToMono(Product.class)
+            .bodyToMono(Product.class);
+        return mono
+            .timeout(Duration.ofSeconds(3))
             .block();
     }
 }

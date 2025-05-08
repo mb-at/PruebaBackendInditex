@@ -4,10 +4,12 @@ import com.example.productsimilarityservice.domain.model.Product;
 import com.example.productsimilarityservice.domain.port.in.GetSimilarProducts;
 import com.example.productsimilarityservice.domain.port.out.ProductDetailClient;
 import com.example.productsimilarityservice.domain.port.out.SimilarIdsClient;
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.stream.Collectors;
+import java.util.Collections;
 
 @Service
 public class GetSimilarProductsImpl implements GetSimilarProducts {
@@ -22,6 +24,7 @@ public class GetSimilarProductsImpl implements GetSimilarProducts {
     }
 
     @Override
+    @CircuitBreaker(name = "productSimilarityService", fallbackMethod = "fallbackSimilar")
     public List<Product> execute(String productId) {
         // 1. Obtener lista de IDs similares
         List<String> similarIds = similarIdsClient.fetchSimilarIds(productId);
@@ -30,5 +33,10 @@ public class GetSimilarProductsImpl implements GetSimilarProducts {
         return similarIds.stream()
                 .map(productDetailClient::fetchById)
                 .collect(Collectors.toList());
+    }
+
+    public List<Product> fallbackSimilar(String productId, Throwable t) {
+        // Graceful degradation
+        return Collections.emptyList();
     }
 }
