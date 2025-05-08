@@ -1,10 +1,10 @@
 # Ignorar los builds de Maven
 /app/target/
-**/target/
+/**/target/
 
 # Wrapper de Maven
 /app/.mvn/
-# pero mantener los scripts mvnw
+!/app/.mvn/wrapper/
 !/app/mvnw
 !/app/mvnw.cmd
 
