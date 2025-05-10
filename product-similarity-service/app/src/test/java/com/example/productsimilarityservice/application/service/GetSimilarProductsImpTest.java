@@ -1,17 +1,23 @@
 package com.example.productsimilarityservice.application.service;
 
-import com.example.productsimilarityservice.domain.model.Product;
-import com.example.productsimilarityservice.domain.port.out.ProductDetailClient;
-import com.example.productsimilarityservice.domain.port.out.SimilarIdsClient;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.mockito.*;
-
 import java.util.Arrays;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Mockito.*;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.mockito.InOrder;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import static org.mockito.Mockito.inOrder;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
+import static org.mockito.Mockito.when;
+import org.mockito.MockitoAnnotations;
+
+import com.example.productsimilarityservice.domain.model.Product;
+import com.example.productsimilarityservice.domain.port.out.ProductDetailClient;
+import com.example.productsimilarityservice.domain.port.out.SimilarIdsClient;
 
 class GetSimilarProductsImplTest {
     
