@@ -1,12 +1,13 @@
 # Fase 1: compilar el JAR
 FROM eclipse-temurin:17-jdk AS build
 WORKDIR /workspace
-# Copiamos sólo lo necesario para cachear dependencias
+
+# Copiamos lo necesario para cachear dependencias
 COPY pom.xml mvnw ./
 COPY .mvn .mvn/
 RUN ./mvnw dependency:go-offline -B
 
-# Ahora copiamos el código y empaquetamos
+#Copiamos el código y empaquetamos
 COPY src src
 RUN ./mvnw package -DskipTests -B
 
