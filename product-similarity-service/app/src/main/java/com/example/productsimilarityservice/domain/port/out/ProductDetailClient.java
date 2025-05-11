@@ -1,7 +1,6 @@
 package com.example.productsimilarityservice.domain.port.out;
 
 import com.example.productsimilarityservice.domain.model.Product;
-import java.util.List;
 
 /**
  * Port de salida: define la operación de fetch de los detalles de
