@@ -1,54 +1,61 @@
 package com.example.productsimilarityservice.application.service;
 
-import java.util.Arrays;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.mockito.InOrder;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import static org.mockito.Mockito.inOrder;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
-import org.mockito.MockitoAnnotations;
 
 import com.example.productsimilarityservice.domain.model.Product;
 import com.example.productsimilarityservice.domain.port.out.ProductDetailClient;
 import com.example.productsimilarityservice.domain.port.out.SimilarIdsClient;
 
+import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
+
 class GetSimilarProductsPartialTest {
 
-    @Mock SimilarIdsClient similarIdsClient;
-    @Mock ProductDetailClient productDetailClient;
-    @InjectMocks GetSimilarProductsImpl useCase;
+  SimilarIdsClient similarIdsClient;
+  ProductDetailClient productDetailClient;
+  GetSimilarProductsImpl useCase;
 
-    @BeforeEach void init() {
-        MockitoAnnotations.openMocks(this);
-    }
+  @BeforeEach
+  void init() {
+    // 1) Mocks for the two ports
+    similarIdsClient    = mock(SimilarIdsClient.class);
+    productDetailClient = mock(ProductDetailClient.class);
 
-    @Test
-    void execute_ignoresSingleDetailFailure_andReturnsOthers() {
-        // Stub de IDs similares
-        when(similarIdsClient.fetchSimilarIds("X"))
-            .thenReturn(Arrays.asList("A","B","C"));
+    // 2) A real CircuitBreakerRegistry (closed by default)
+    CircuitBreakerRegistry registry = CircuitBreakerRegistry.ofDefaults();
 
-        // Para A y C devuelvo producto, para B lanzo excepción
-        Product pA = new Product("A","ItemA",10.0,true);
-        Product pC = new Product("C","ItemC",30.0,false);
-        when(productDetailClient.fetchById("A")).thenReturn(pA);
-        when(productDetailClient.fetchById("B")).thenThrow(new RuntimeException("fail B"));
-        when(productDetailClient.fetchById("C")).thenReturn(pC);
+    // 3) Manual construction
+    useCase = new GetSimilarProductsImpl(
+      similarIdsClient,
+      productDetailClient,
+      registry
+    );
+  }
 
-        List<Product> result = useCase.execute("X");
+  @Test
+  void execute_ignoresSingleDetailFailure_andReturnsOthers() {
+    // arrange
+    when(similarIdsClient.fetchSimilarIds("1"))
+      .thenReturn(List.of("2", "100", "3"));
 
-        // Comprueba que B se ha ignorado y A/C están
-        assertThat(result).containsExactly(pA, pC);
+    Product p2 = new Product("2","Dress",19.99,true);
+    when(productDetailClient.fetchById("2")).thenReturn(p2);
 
-        // Verifica llamadas
-        InOrder inOrder = inOrder(productDetailClient);
-        inOrder.verify(productDetailClient).fetchById("A");
-        inOrder.verify(productDetailClient).fetchById("B");
-        inOrder.verify(productDetailClient).fetchById("C");
-    }
+    when(productDetailClient.fetchById("100"))
+      .thenThrow(new RuntimeException("fail100"));
+
+    Product p3 = new Product("3","Blazer",29.99,false);
+    when(productDetailClient.fetchById("3")).thenReturn(p3);
+
+    // act
+    List<Product> result = useCase.execute("1");
+
+    // assert — only the good ones survive
+    assertThat(result).containsExactly(p2, p3);
+  }
 }

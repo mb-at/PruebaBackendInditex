@@ -1,3 +1,8 @@
+logging:
+  level:
+    io.github.resilience4j: DEBUG
+    com.example.productsimilarityservice.application.service.GetSimilarProductsImpl: DEBUG
+
 api:
   similarIds:
     base-url: http://simulado:80

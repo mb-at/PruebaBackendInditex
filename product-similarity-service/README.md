@@ -1,6 +1,8 @@
 Product Similarity Service
 
-Microservicio en Spring Boot con arquitectura hexagonal que expone un endpoint para obtener productos similares, implementando resiliencia, timeouts, degradación suave, y validado con pruebas unitarias, de integración y de carga (k6 + Grafana + InfluxDB). A continuación se describen cómo instalar, ejecutar y validar la solución.
+Microservicio en Spring Boot (Java 17) con arquitectura hexagonal que expone el endpoint
+GET /product/{productId}/similar.
+Implementa llamados reactivos paralelos, timeouts por ítem, Circuit Breaker (Resilience4j), degradación suave y se valida con pruebas unitarias, de integración, E2E y carga (k6 + Grafana + InfluxDB).
 
 ---
 
@@ -94,37 +96,78 @@ k6 → Contenedor de carga listo, pero no ejecuta automáticamente
 
 ---
 
-## 🏛️ Arquitectura & Diseño
+# 🏛️ Arquitectura & Diseño
 
-La solución sigue el patrón **hexagonal** (Ports and Adapters), separando la lógica de negocio, detalles de infraestructura y exposición externa:
+## Patrón Hexagonal (Ports & Adapters)
 
-- **Adaptadores de entrada (adapter/in)**: Controladores REST (`SimilarController`) que manejan peticiones HTTP y delegan a la capa de aplicación.
-- **Capa de aplicación (application)**: Servicios (`GetSimilarProductsImpl`) orquestan la lógica de negocio, combinando llamadas a puertos de salida y aplicando resiliencia.
-- **Puertos y modelos de dominio (domain)**: Interfaces (`SimilarIdsClient`, `ProductDetailClient`) y objetos de valor (`Product`) que definen el contrato interno sin depender de frameworks.
-- **Adaptadores de salida (adapter/out)**: Implementaciones concretas de clientes HTTP reactivos (_WebClient_) que consumen APIs externas simuladas, configuradas con timeouts, circuit breakers y fallback.
+### Capas Principales
+- **Adapters de Entrada (`adapter/in`)**:
+  - `SimilarController` (Endpoint REST).
+  
+- **Capa de Aplicación (`application`)**:
+  - `GetSimilarProductsImpl`: Orquesta la lógica de negocio y resiliencia.
 
-### Aspectos clave
+- **Dominio (`domain`)**:
+  - Interfaces: `SimilarIdsClient`, `ProductDetailClient`.
+  - Modelo: `Product`.
 
-- **Resiliencia con Resilience4j**: Cada llamada externa está protegida por Circuit Breaker y timeout configurables, con degradación suave para no interrumpir el flujo principal.
-- **Programación reactiva**: Uso de _WebClient_ y Reactor para realizar múltiples llamadas concurrentes y non-blocking, limitando el nivel de concurrencia para controlar recursos.
-- **Contrato contract-first OpenAPI**: La especificación `openapi.yml` es estática y se expone directamente en Swagger UI, asegurando que el contrato no difiera del código.
-- **Pruebas exhaustivas**: Cobertura con pruebas unitarias, de integración (controller y E2E) y de carga, utilizando mocks y simulando escenarios de error y latencia.
-
----
-
-## ⏩ Posibles futuras mejoras Rápidas
-
-1. Configurar _connection pooling_ en `WebClient` (Reactor Netty) para reutilizar sockets.
-2. Bulk-fetch si downstream API lo soporta.
+- **Adapters de Salida (`adapter/out`)**:
+  - Clientes HTTP reactivos con `WebClient`.
+  - Configuraciones: Timeouts, Circuit Breaker y fallbacks.
 
 ---
 
-## 📈 Resultados Clave de la Prueba de Carga
+## 🔧 Puntos Clave de Resiliencia
 
-- **p50** (`normal`): ~120 ms
-- **p90** (`normal`): ~630 ms
-- **Throughput**: ~160 req/s sostenido
-- **Graceful Degradation**: 404/500 y timeouts devuelven `[]` sin falla del endpoint
+### Fetch de IDs
+- **Ruta**: `GET /product/{id}/similarids` (Stub).
+- **Circuit Breaker** (`productSimilarityService`):
+  - Se abre tras **3 fallos** (timeout o error HTTP).
+  - En estado **open**: Fallo instantáneo (sin esperar timeout).
+  - Transición a **half-open** tras 5 segundos. Si un probe tiene éxito → circuito cerrado.
+- **Fallback Global**: Retorna lista vacía `[]`.
+
+### Fetch de Detalles en Paralelo
+- **Concurrencia**: 20 hilos (`Flux`).
+- **Timeout**: 3 segundos por detalle.
+  - En timeout/error HTTP: Log de `WARN` y descarta el ítem.
+
+---
+
+## 🧪 Pruebas
+
+### Tipos de Pruebas
+- **Unitarias**: Validan lógica de adapters y uso de Reactor.
+- **Integración**: 
+  - `MockMvc` sobre controladores con stubs.
+- **E2E (Resiliencia)**:
+  - 3 fallos consecutivos en IDs → Circuito abre → Respuesta `[]`.
+  - Forzar half-open + éxito → Circuito se cierra → Datos reales.
+
+---
+
+## 🖥️ Entorno de Prueba
+
+| Componente               | Especificación/Imagen                     |
+|--------------------------|-------------------------------------------|
+| **Hardware**             | Intel i7 / 32 GB RAM / Ubuntu 22.04       |
+| **Java**                 | OpenJDK 17                                |
+| **Docker**               | 20.x                                      |
+| **Servicios en Contenedores** | `product-similarity-service:app`, `ldabiralai/simulado:latest` (puerto 3001), `influxdb:1.8.2`, `grafana/grafana:8.1.2`, `loadimpact/k6:0.28.0` |
+
+---
+
+## 📈 Resultados de Prueba de Carga
+
+| Métrica                  | Valor                     |
+|--------------------------|---------------------------|
+| **p50 (normal)**         | ~4 ms (circuito abierto)  |
+| **p90 (normal)**         | ~165 ms                   |
+| **p95 (normal)**         | ~286 ms                   |
+| **Latencia máxima**       | ~7.15 s (fast-fail inicial) |
+| **Throughput sostenido**  | ~235 req/s                |
+| **Tiempo bloqueado (avg)**| ~0.8 ms                   |
+| **VUs concurrentes**      | 200 máx                   |
 
 ---
 
