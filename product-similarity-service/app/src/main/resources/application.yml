@@ -1,5 +1,12 @@
+api:
+  similarIds:
+    base-url: http://simulado:80
+  productDetail:
+    base-url: http://simulado:80
+    
 server:
   port: 5000
+
 resilience4j:
   circuitbreaker:
     configs:
@@ -11,3 +18,9 @@ resilience4j:
     instances:
       productSimilarityService:
         baseConfig: default
+
+springdoc:
+  swagger-ui:
+    urls:
+      - name: “SimilarProducts API”
+        url: /openapi.yml

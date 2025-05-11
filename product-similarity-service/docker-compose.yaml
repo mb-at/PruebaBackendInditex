@@ -1,11 +1,30 @@
-version: "3.3"
 services:
+  # 1)App Spring Boot
+  app:
+    build:
+      context: ./app
+    ports:
+      - "5000:5000"
+    depends_on:
+      - simulado
+
+  simulado:
+    image: ldabiralai/simulado:latest
+    ports:
+      - "3001:80"
+    volumes:
+      - ./shared/simulado:/app
+    command: ./bin/simulado -f /app/mocks.json
+
+  # 3) InfluxDB para recoger métricas de k6
   influxdb:
     image: influxdb:1.8.2
     ports:
       - "8086:8086"
     environment:
       - INFLUXDB_DB=k6
+
+  # 4) Grafana para visualizar los resultados
   grafana:
     image: grafana/grafana:8.1.2
     ports:
@@ -16,20 +35,13 @@ services:
       - GF_AUTH_BASIC_ENABLED=false
     volumes:
       - ./shared/grafana:/etc/grafana/provisioning/
-  simulado:
-    image : ldabiralai/simulado:latest
-    ports:
-      - "3001:80"
-    volumes:
-      - ./shared/simulado:/app
-    command: ./bin/simulado -f /app/mocks.json
+
+  # 5) El contenedor de k6
   k6:
     image: loadimpact/k6:0.28.0
-    ports:
-      - "6565:6565"
     volumes:
       - ./shared/k6:/scripts
     environment:
       - K6_OUT=influxdb=http://influxdb:8086/k6
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
+    depends_on:
+      - app

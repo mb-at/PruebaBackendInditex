@@ -45,7 +45,8 @@ export let options = {
   }
 };
 
-const host = "http://host.docker.internal:5000";
+const host = "http://app:5000";
+const influx = "http://influxdb:8086";
 
 export function normal() {
   http.get(host + "/product/1/similar");
